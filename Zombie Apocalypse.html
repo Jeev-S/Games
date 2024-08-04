@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Zombie Apocalypse</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    button {
+        display:block ;
+        margin:auto;
+        padding: 10px;
+        font-size: 30px;
+    }
+
+  </style>
+</head>
+<button type="button" id="start_game" style="background-color: rgb(0, 112, 86);" onclick="startGame()">Start Game</button>
+<button type="button" id="story" style="background-color: rgb(0, 7, 139);" onclick="story()">Story</button>
+<button type="button" id="controls" style="background-color: rgb(0, 170, 255);" onclick="controls()">Controls</button>
+
+
+
+
+<body style="background-color: Black;">
+  <canvas id="myCanvas"></canvas>
+
+<script>
+
+let canvas = document.getElementById('myCanvas');
+let ctx = canvas.getContext('2d');
+ctx.shadowColor="lightblue"
+ctx.shadowOffsetX=10
+ctx.shadowOffsetY=10
+var game_started=false
+var type='reg'
+var playeralive=true
+let dir = 'right';
+var kingfight=false
+var bulletdamage=10
+let shooting = false;
+var score=0
+var zombieskilled=0
+let x = true
+var kingfightdone=false
+let animateID;
+var cankillplayer=true
+var sec=0
+var min=0
+var time="0:0"
+
+var music=new Audio('/Users/jeev/Desktop/Code/Javascript/honor-and-sword-main-11222.mp3')
+var intro=new Audio('/Users/jeev/Desktop/Code/Javascript/intro-underground-vibes-records-213365.mp3')
+
+
+
+function startGame() {
+    setInterval(() => {
+        if (sec>59) {
+            min++
+            sec=0
+        }
+        sec++
+    }, 1000);
+    music.play()
+    music.loop=true
+    music.volume=0.8
+    game_started=true
+    document.getElementById("start_game").remove();
+    document.getElementById("story").remove();
+    document.getElementById("controls").remove();
+
+}
+function story() {
+    alert("You are in a zombie apocalypse.\nThe 58 Presedent,Jeev Sarwate, has ordered you to hunt down zombies\nThere are different types of known Zombies.\nRegular,Fast,and Big\nLegend has it that the king of zombies is much more powerful...\nGood Luck!")
+}
+function controls() {
+    alert("Arrow keys to move,\nWASD to change direction of shooting,\nspacebar to shoot,\nright shift to sheild (Only 3 sheilds)")
+}
+
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+
+
+function getRandomInt(max) {
+  return Math.floor(Math.random() * max);
+}
+
+var enemyColors=['rgb(69,75,27)','rgb(175,255,175)','rgb(95,158,160)','rgb(2,48,32)','rgb(128,128,0)']
+var enemycolor='rgb(69,75,27)'
+
+let player = {
+    x: canvas.width / 2,
+    y: canvas.height / 2,
+    speed: 10,
+    size: 50,
+    dx: 0,
+    dy: 0,
+    health:100
+};
+
+    let enemy = {
+    x: 100,
+    y: 100,
+    size: 50,
+    health: 100,
+    speed:3,
+    damage:20
+    };
+
+
+ctx.lineJoin="round"
+
+
+let bullets = []; // Array to hold multiple bullets
+let enemyType=['reg','fast','minion',//'king'
+]
+
+let powerups=['Speed','Damage Increase']
+
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+var shield=false
+
+let powerup='NONE'
+function draw() {
+    if(playeralive){ 
+        ctx.font="20px Arial"
+        ctx.fillStyle="White"
+            
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillText("SCORE:"+score,(canvas.width-150),50)
+        ctx.fillText("POWERUP:"+powerup,(50),50)
+        ctx.fillText("HEALTH:"+player.health,(canvas.width-150),100)
+        ctx.fillText("SHIELDS USED:"+shieldUsed,(50),100)
+        
+        if (shield) {
+            ctx.strokeStyle = 'Lightblue';
+            ctx.lineWidth = 5;
+            ctx.strokeRect(player.x - 5, player.y - 5, player.size + 10, player.size + 10); // Draw Shield
+        }
+        
+        if(player.health>0){
+            playeralive=true
+            ctx.fillStyle = 'rgb(77,77,255)';
+            ctx.strokeStyle = 'lightblue';
+            ctx.lineWidth=3
+            ctx.fillRect(player.x, player.y, player.size, player.size); // Draw Player
+            ctx.strokeRect(player.x,player.y,player.size,player.size)
+        } else {
+            playeralive=false;
+            time = min + ":" + sec;
+            music.pause();
+            var death = new Audio('/Users/jeev/Desktop/Code/Javascript/cartoon-man-death-voice-sound-effect 8.23.01 PM.mp3');
+            death.play();
+            var wompwompwomp = new Audio('/Users/jeev/Desktop/Code/Javascript/downer_noise.mp3');
+            wompwompwomp.play();
+            var sadPiano = new Audio('/Users/jeev/Desktop/Code/Javascript/tense-sad-piano-111679.mp3');
+            sadPiano.play();
+            sadPiano.loop = true;
+        }
+
+        bullets.forEach(bullet => {
+            ctx.fillStyle = 'Red';
+            ctx.fillRect(bullet.x, bullet.y, bullet.size, bullet.size); // Draw Bullet
+        });
+
+        if (kingexplode) {
+            ctx.fillStyle = 'Red';
+            ctx.fillRect(kingExplosion.x, kingExplosion.y, kingExplosion.size, kingExplosion.size);
+        }
+
+        if (enemy.health > 0) {
+            ctx.fillStyle = enemycolor;
+            ctx.strokeStyle = 'rgb(0,100,0)';
+            ctx.lineWidth = 3;
+            ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size); // Draw Enemy
+            ctx.strokeRect(enemy.x, enemy.y, enemy.size, enemy.size);
+        } else {
+            powerup = 'NONE';
+            enemycolor = enemyColors[getRandomInt(enemyColors.length)];
+            zombieskilled++;
+            if (type !== 'king') {
+                enemy.x = getRandomInt(canvas.width);
+                enemy.y = getRandomInt(canvas.height);
+            } else {
+                enemy.x = 0;
+                enemy.y = 0;
+            }
+            if (type == 'reg') {
+                score += 1;
+            }
+            if (type == 'fast') {
+                score += 5;
+            }
+
+            if (type == 'minion') {
+                powerup = powerups[getRandomInt(powerups.length)];
+                if (powerup == 'Speed') {
+                    player.speed += 2;
+                } else if (powerup == 'Damage Increase') {
+                    bulletdamage += 5;
+                }
+                
+                score += 10;
+            }
+            if (type == 'king') {
+                score += 100;
+                kingfightdone = true;
+            }
+            if (score >= 20 && kingfight === false) {
+                alert("You: The Zombie King... The legends are true!\nYou: Wait, where's my gun?!\n*Calls for backup...");
+                kingfight = true;
+                canshoot = false;
+                updateEnemyType('king');
+            } else {
+                updateEnemyType(enemyType[getRandomInt(enemyType.length)]);
+            }
+            sleep(2000).then(() => { enemy.health = setEnemyHP(type); });
+        }
+
+        if (areSquaresTouching(player, enemy) && cankillplayer) {
+            cankillplayer = false;
+            if (!shield) {
+                player.health -= enemy.damage;
+            }
+            setTimeout(cankillplayerTrue, 300);
+        }
+
+        if(kingfightdone){
+            kingexplode=false
+        }
+        // Correctly check collision and apply damage for kingExplosion
+        if (kingexplode && areSquaresTouching(player, kingExplosion) && cankillplayer) {
+            cankillplayer = false;
+            if (!shield) {
+                player.health -= kingExplosion.damage;
+            }
+            setTimeout(cankillplayerTrue, 300);
+        }
+
+        if (enemy.health > 0) {
+            updateEnemy();
+        }
+        updatePlayer();
+        updateBullets();
+        detectCollision();
+    } else {
+        deathscreen();
+    }
+}
+
+
+function cankillplayerTrue() {
+    cankillplayer=true
+}
+
+function setEnemyHP(type) {
+
+    if (type=='reg'||type=='fast') {
+        return 100
+    }
+    if (type=='minion') {
+        return 150
+    }
+    if(type=='king'){
+        return 200
+    }
+
+}
+
+var increasePlayerHealth=true
+
+function survive() {
+    if (increasePlayerHealth) {
+        increasePlayerHealth=false
+        if (player.health<=50) {
+            player.health+=50
+        }else{
+            player.health=100
+        }
+    }
+
+
+    setTimeout(backup_comes,10000)
+
+}
+var hasBackupCome=false
+function backup_comes() {
+    if (hasBackupCome==false&&playeralive==true) {
+        alert("Chopper Pilot:This is Jim,backup has arrived,\nwe have dropped you a new  more powerful gun and a scrolling pack.\nJim:We are sending our best me-\nJim:THERE IS A ZOMBIE ON BOARD,THIS CHOPPER IS GOING DOWN!!\nBOOM\nYou:Jim?\nYou:JIM?\nYou:Oh BOY...")
+        canscroll=true
+        canshoot=true
+        bulletdamage+=10
+        hasBackupCome=true
+        setInterval(() => {
+            kingBoom()
+        }, 4000);
+    }
+
+}
+
+var canenemymove=true
+var kingexplode=false
+
+let kingExplosion={
+    x:null,
+    y:null,
+    size:500,
+    damage:50,
+}
+function kingBoom() {
+    canenemymove = false;
+    kingExplosion.x = enemy.x + enemy.size / 2 - kingExplosion.size / 2;
+    kingExplosion.y = enemy.y + enemy.size / 2 - kingExplosion.size / 2;
+
+    kingexplode = true;
+    setTimeout(() => {
+        canenemymove = true;
+        kingexplode = false;
+    }, 1000);
+}
+
+
+
+function deathscreen() {
+    if(x){
+        ctx.textAlign = "center";
+        ctx.fillStyle='Black'
+        ctx.fillRect(0,0,canvas.width,canvas.height)
+        ctx.font = "50px Arial";
+        ctx.fillStyle='White'
+        ctx.fillText("YOU DIED",(canvas.width/2),50)
+        ctx.fillText("SCORE:"+score,(canvas.width/2),150)
+        ctx.fillText("Zombies Killed:"+zombieskilled,(canvas.width/2),250)
+        ctx.fillText("Time:"+time,(canvas.width/2),350)
+        let highscore=localStorage.getItem("highscore")
+        if (highscore==null) {
+            localStorage.setItem("highscore","0")
+        }
+        if (score>Number(highscore)) {
+            localStorage.setItem("highscore",score)
+            alert("NEW HIGHSCORE!")
+        }
+        ctx.fillText("Personal Highscore:"+highscore,(canvas.width/2),450)
+
+        x=false
+    }
+}
+
+
+function updateEnemyType(Enemytype) {
+    type=Enemytype
+
+    if (Enemytype=='reg') {
+        if (kingfightdone) {
+            enemy.size=55
+            enemy.speed=5
+            enemy.health=150
+            enemy.damage=30
+        }else{
+            enemy.size=50
+            enemy.speed=4
+            enemy.health=100
+            enemy.damage=20
+        }
+    }else if(Enemytype=='fast'){
+        if (kingfightdone) {
+            enemy.size=55
+            enemy.speed=7
+            enemy.health=150
+            enemy.damage=30
+        }else{
+            enemy.size=50
+            enemy.speed=6
+            enemy.health=100
+            enemy.damage=20
+        }
+    }else if (Enemytype=='minion') {
+        if (kingfightdone) {
+            enemy.size=80
+            enemy.speed=6
+            enemy.health=200
+            enemy.damage=35
+        }else{
+            enemy.size=75
+            enemy.speed=5
+            enemy.health=150
+            enemy.damage=30
+        }
+    }else if(Enemytype=='king'){
+        enemy.size=150
+        enemy.health=200
+        enemy.speed=6
+        enemy.damage=30
+    } 
+
+    }
+
+var canscroll=false
+function updatePlayer() {
+    player.x += player.dx;
+    player.y += player.dy;
+
+    if(canscroll){
+        if (player.x < 0) player.x = canvas.width;
+        if (player.x > canvas.width) player.x = 0;
+        if (player.y < 0) player.y = canvas.height;
+        if (player.y > canvas.height) player.y = 0;
+    }else{
+        if (player.x < 0) player.x = 0;
+        if (player.x + player.size > canvas.width) player.x = canvas.width - player.size;
+        if (player.y < 0) player.y = 0;
+        if (player.y + player.size > canvas.height) player.y = canvas.height - player.size;
+    }
+}
+
+function updateEnemy() {
+    if(canenemymove){    
+    if (enemy.x < player.x) enemy.x += enemy.speed;
+    if (enemy.x > player.x) enemy.x -= enemy.speed;
+    if (enemy.y < player.y) enemy.y += enemy.speed;
+    if (enemy.y > player.y) enemy.y -= enemy.speed;
+    }
+}
+
+function updateBullets() {
+    bullets.forEach((bullet, index) => {
+        bullet.x += bullet.dx;
+        bullet.y += bullet.dy;
+
+        // Remove bullet if out of canvas bounds or hit
+        if (bullet.y < 0 || bullet.y > canvas.height || bullet.x < 0 || bullet.x > canvas.width || bullet.hasHit) {
+            bullets.splice(index, 1);
+        }
+    });
+}
+
+function detectCollision() {
+    bullets.forEach(bullet => {
+        if (!bullet.hasHit && bullet.x + bullet.size > enemy.x && bullet.x < enemy.x + enemy.size &&
+            bullet.y + bullet.size > enemy.y && bullet.y < enemy.y + enemy.size) {
+            enemy.health -= bullet.damage;
+            bullet.hasHit = true; 
+        }
+    });
+}
+function areSquaresTouching(square1, square2) {
+    const { x: x1, y: y1, size: size1 } = square1;
+    const { x: x2, y: y2, size: size2 } = square2;
+
+    return (
+        x1 < x2 + size2 &&
+        x1 + size1 > x2 &&
+        y1 < y2 + size2 &&
+        y1 + size1 > y2 
+    );
+}
+
+function shootBullet() {
+    let newBullet = {
+        x: player.x + player.size / 2 - 5,
+        y: player.y + player.size / 2 - 5,
+        speed: 15,
+        size: 10,
+        damage: bulletdamage,
+        dx: (dir === 'right' ? 10 : dir === 'left' ? -10 : 0),
+        dy: (dir === 'down' ? 10 : dir === 'up' ? -10 : 0),
+        hasHit: false
+    };
+        bullets.push(newBullet);
+}
+
+var canshoot=true
+var shieldUsed=0
+document.addEventListener('keydown', function (e) {
+    switch (e.keyCode) {
+        case 37: // Left arrow
+            player.dx = -player.speed;
+            break;
+        case 38: // Up arrow
+            player.dy = -player.speed;
+            break;
+        case 39: // Right arrow
+            player.dx = player.speed;
+            break;
+        case 40: // Down arrow
+            player.dy = player.speed;
+            break;
+        case 32: // Spacebar
+            if (!shooting&&canshoot==true) {
+                var shoot=new Audio('/Users/jeev/Desktop/Code/Javascript/gunshot-sound-effect.mp3')
+                shoot.play()
+                shoot.volume=0.7
+                shooting = true;
+                shootBullet();
+            }
+            break;
+        case 87: // W key
+            if (!shooting) dir = 'up';
+            break;
+        case 65: // A key
+            if (!shooting) dir = 'left';
+            break;
+        case 68: // D key
+            if (!shooting) dir = 'right';
+            break;
+        case 83: // S key
+            if (!shooting) dir = 'down';
+            break;
+        case 16: // Shift key
+            if(shieldUsed<=2 && !shield){
+                shield=true
+                shieldUsed++
+                setTimeout(shieldOff, 5000); // Shield lasts for 5 seconds
+            }
+            break;
+
+    }
+});
+
+document.addEventListener('keyup', function (e) {
+    if (e.keyCode === 37 || e.keyCode === 39) {
+        player.dx = 0;
+    }
+    if (e.keyCode === 38 || e.keyCode === 40) {
+        player.dy = 0;
+    }
+    if (e.keyCode === 32) {
+        shooting = false;
+    }
+});
+
+function shieldOff() {
+    shield=false
+}
+
+
+function animate() {
+
+    if (game_started) {
+      draw()  
+    }
+    if (kingfight) {
+        survive()
+    }
+
+    if (shield==true) {
+        ctx.fillStyle='Lightblue'
+        ctx.fillRect(20,20,20,20)
+        setTimeout(shieldOff,2000)
+    }
+    requestAnimationFrame(animate);
+}
+
+    animate()
+
+
+</script>
+</body>
+</html>
