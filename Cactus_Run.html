@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Cactus Run</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100% }
+        canvas { background-color: #ecaf71; display: block }
+    </style>
+</head>
+<body>
+<canvas id="gameCanvas" width="1000" height="800"></canvas>
+
+<script>
+const canvas=document.getElementById('gameCanvas')
+const ctx=canvas.getContext('2d')
+
+canvas.width=window.innerWidth
+canvas.height=window.innerHeight
+
+var cactusAmount=150
+var cactusDrawn=0
+var goodBombAmount=10
+var goodBombDrawn=0
+var round=1
+var sheildsLeft=3
+var sheild=false
+
+const cactus=[]
+const goodBombs=[]
+const explosions=[]
+
+var cactusDone=false
+var bombsDone=false
+var playermove=false
+var score=0
+let shakeTime = 0;
+let shakeStrength = 0;
+
+var player={
+    x:100,
+    y:canvas.height/2,
+    speedLR:10,
+    size:7,
+    speedF:1.5
+}
+function shake(strength, frames){
+    shakeStrength = strength;
+    shakeTime = frames;
+}
+
+function randomNum(min,max){
+    return Math.floor(Math.random()*(max-min+1))+min
+}
+function drawBall(x,y,size,color,border){
+    ctx.beginPath();
+    ctx.arc(x,y,size,0,Math.PI*2)
+    ctx.fillStyle=color
+    ctx.fill()
+
+    ctx.lineWidth = size/4;
+    ctx.strokeStyle = border; 
+    ctx.stroke(); 
+}
+function touching(x1,y1,r1,x2,y2,r2){
+    const dx=x1-x2,dy=y1-y2
+    return Math.sqrt(dx*dx+dy*dy)<=r1+r2
+}
+
+function createcactus(index){
+    cactus.push({
+        x:randomNum(250,canvas.width),
+        y:randomNum(0,canvas.height),
+        size:randomNum(3,10)
+    })
+    if (index>0 && touching(cactus[index].x,cactus[index].y,cactus[index].size,cactus[index-1].x,cactus[index-1].y,cactus[index-1].size)) {
+        cactus.splice(index,1)
+        cactusDrawn--
+    }
+}
+
+function createGoodBombs(){
+    goodBombs.push({
+        x:randomNum(250,canvas.width),
+        y:randomNum(0,canvas.height),
+        size:randomNum(3,10)
+    })
+}
+
+window.addEventListener('keydown',e=>{
+    if(e.key==='ArrowUp'&&playermove&&player.y>0) {
+        player.y-=player.speedLR
+    }
+    if(e.key==='ArrowDown'&&playermove&&player.y<canvas.height) {
+    player.y+=player.speedLR
+    }
+    if (e.key==='Space') {
+        sheild=true
+        sheildsLeft--
+    }
+})
+
+let ID
+
+function drawObsLoop(){
+
+    if(cactusDrawn<cactusAmount){
+        createcactus(cactusDrawn)
+        drawBall(cactus[cactusDrawn].x,cactus[cactusDrawn].y,cactus[cactusDrawn].size,'rgb(34,116,66)','rgb(0,86,63)')
+        cactusDrawn++
+    }else{
+        cactusDone=true
+    }
+
+    if(goodBombDrawn<goodBombAmount){
+        createGoodBombs()
+        drawBall(goodBombs[goodBombDrawn].x,goodBombs[goodBombDrawn].y,goodBombs[goodBombDrawn].size,'red','darkred')
+        goodBombDrawn++
+    }else{
+        bombsDone=true
+    }
+
+    if(cactusDone&&bombsDone){
+        playermove=true
+        cancelAnimationFrame(ID)
+        return
+    }
+
+    ID=requestAnimationFrame(drawObsLoop)
+}
+
+function lose(){
+    playermove=false
+    ctx.fillStyle = "black";
+    ctx.font="120px Ariel"
+    ctx.textAlign = "center"
+    ctx.fillText("GAME OVER",canvas.width/2,canvas.height/2)
+    ctx.fillText("Score: "+score,canvas.width/2,canvas.height/2+100)
+}
+
+function MainLoop(){
+
+    ctx.clearRect(0,0,canvas.width,canvas.height)
+    ctx.save();
+
+    ctx.fillStyle = "black";
+    ctx.font="35px Ariel"
+    ctx.textAlign = "left"
+    ctx.fillText("Score: "+score,25,25)
+    ctx.fillText("Round: "+round,25,50)
+    ctx.fillText("Sheilds: "+sheildsLeft,25,75)
+
+    if(shakeTime > 0){
+        const amount = shakeStrength * (shakeTime / 20);
+
+        ctx.translate(
+            (Math.random()-0.5)*amount*2,
+            (Math.random()-0.5)*amount*2
+        );
+
+        shakeTime--;
+    }
+
+    if(playermove) {
+        player.x+=player.speedF
+    }
+
+    for(let i=0;i<cactus.length;i++){
+        drawBall(cactus[i].x,cactus[i].y,cactus[i].size,'rgb(34,116,66)','rgb(0,86,63)')
+    }
+
+    for(let i=0;i<goodBombs.length;i++){
+        drawBall(goodBombs[i].x,goodBombs[i].y,goodBombs[i].size,'black',"red")
+    }
+
+    for(let i=0;i<explosions.length;i++){
+        drawBall(explosions[i].x,explosions[i].y,explosions[i].size,'orange','darkorange')
+    }
+
+    for(let i=0;i<cactus.length;i++){
+        if(touching(player.x,player.y,player.size,cactus[i].x,cactus[i].y,cactus[i].size)){
+            lose()
+        }
+    }
+
+    for(let i=goodBombs.length-1;i>=0;i--){
+
+        if(touching(player.x,player.y,player.size,goodBombs[i].x,goodBombs[i].y,goodBombs[i].size)){
+
+            const exp={
+                x:goodBombs[i].x,
+                y:goodBombs[i].y,
+                size:goodBombs[i].size*9
+            }
+
+            explosions.push(exp)
+            shake(goodBombs[i].size*3,goodBombs[i].size*2)
+            score+=goodBombs[i].size*5
+            goodBombs.splice(i,1)
+
+            for(let i=cactus.length-1;i>=0;i--){
+
+                if(touching(exp.x,exp.y,exp.size,cactus[i].x,cactus[i].y,cactus[i].size)){
+                    cactus.splice(i,1)
+                }
+
+            }
+        }
+    }
+
+    if(player.x>=canvas.width){
+
+        round++
+        score+=100 +(round*25)
+        alert("Round "+round)
+
+        player.x=100
+        player.y=canvas.height/2
+        player.speedF+=0.2
+
+        cactusAmount+=15
+
+        cactus.length=0
+        goodBombs.length=0
+        explosions.length=0
+
+        cactusDrawn=0
+        goodBombDrawn=0
+
+        cactusDone=false
+        bombsDone=false
+        playermove=false
+
+        drawObsLoop()
+    }
+
+    drawBall(player.x,player.y,player.size,'darkblue','blue')
+    ctx.restore();
+
+    requestAnimationFrame(MainLoop)
+}
+
+drawObsLoop()
+MainLoop()
+</script>
+</body>
+</html>
